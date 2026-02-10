@@ -1,0 +1,110 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: workloadidentity-minimal
+spec:
+  compositeTypeRef:
+    apiVersion: platform.example.com/v1alpha1
+    kind: XWorkloadIdentity
+  
+  mode: Pipeline
+  pipeline:
+  - step: create-resources
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      
+      # 1. Create the Namespace
+      - name: namespace
+        base:
+          apiVersion: kubernetes.crossplane.io/v1alpha2
+          kind: Object
+          spec:
+            forProvider:
+              manifest:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: ""
+            providerConfigRef:
+              name: kubernetes-provider
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.namespace
+          toFieldPath: spec.forProvider.manifest.metadata.name
+      
+      # 2. Create Azure Managed Identity
+      - name: managed-identity
+        base:
+          apiVersion: managedidentity.azure.upbound.io/v1beta1
+          kind: UserAssignedIdentity
+          spec:
+            forProvider:
+              location: westus2
+              resourceGroupName: ib-crossplane
+              name: "" # Required by Azure provider
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.identityName
+          toFieldPath: metadata.name
+        
+        # Also set the name in spec.forProvider.name (required by Azure)
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.identityName
+          toFieldPath: spec.forProvider.name
+        
+        # Get clientId from MI and put it in XR status
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.clientId
+          toFieldPath: status.clientId
+        
+        # Get tenantId from MI and put it in XR status
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.tenantId
+          toFieldPath: status.tenantId
+      
+      # 3. Create ServiceAccount with clientId annotation
+      - name: service-account
+        base:
+          apiVersion: kubernetes.crossplane.io/v1alpha2
+          kind: Object
+          spec:
+            forProvider:
+              manifest:
+                apiVersion: v1
+                kind: ServiceAccount
+                metadata:
+                  annotations:
+                    azure.workload.identity/client-id: ""
+                    azure.workload.identity/tenant-id: ""
+            providerConfigRef:
+              name: kubernetes-provider
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.serviceAccountName
+          toFieldPath: spec.forProvider.manifest.metadata.name
+        
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.namespace
+          toFieldPath: spec.forProvider.manifest.metadata.namespace
+        
+        # This is the key part - patch clientId from XR status to SA annotation
+        - type: FromCompositeFieldPath
+          fromFieldPath: status.clientId
+          toFieldPath: spec.forProvider.manifest.metadata.annotations[azure.workload.identity/client-id]
+          policy:
+            fromFieldPath: Required  # Wait for clientId before creating SA
+        
+        - type: FromCompositeFieldPath
+          fromFieldPath: status.tenantId
+          toFieldPath: spec.forProvider.manifest.metadata.annotations[azure.workload.identity/tenant-id]
+          policy:
+            fromFieldPath: Required
+
+  - step: auto-ready
+    functionRef:
+      name: function-auto-ready

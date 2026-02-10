@@ -1,0 +1,41 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xworkloadidentities.platform.example.com
+spec:
+  group: platform.example.com
+  names:
+    kind: XWorkloadIdentity
+    plural: xworkloadidentities
+  claimNames:
+    kind: WorkloadIdentity
+    plural: workloadidentities
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              namespace:
+                type: string
+              serviceAccountName:
+                type: string
+              identityName:
+                type: string
+            required:
+            - namespace
+            - serviceAccountName
+            - identityName
+          status:
+            type: object
+            properties:
+              clientId:
+                type: string
+              tenantId:
+                type: string

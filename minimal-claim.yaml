@@ -1,0 +1,10 @@
+---
+apiVersion: platform.example.com/v1alpha1
+kind: WorkloadIdentity
+metadata:
+  name: my-test
+  namespace: default
+spec:
+  identityName: my-test-mi
+  namespace: identity-binding-test
+  serviceAccountName: identity-binding-test-sa
