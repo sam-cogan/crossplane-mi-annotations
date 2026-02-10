@@ -1,14 +1,12 @@
 # Minimal Crossplane Demo - Annotate ServiceAccount with MI ClientId
 
-This is the absolute bare minimum to demonstrate Crossplane patching the managed identity's clientId onto a ServiceAccount annotation.
+This is an example deployment to demonstrate Crossplane patching the managed identity's clientId onto a ServiceAccount annotation in a single deployment.
 
 ## What This Does
 
 1. Creates an Azure Managed Identity
 2. Gets the `clientId` from the MI's status
-3. Patches it onto a ServiceAccount annotation `azure.workload.identity/client-id`
-
-That's it. Nothing else.
+3. Patches it onto a ServiceAccount annotation `azure.workload.identity/client-id` and creates the service account
 
 ## Prerequisites
 
